@@ -1,0 +1,8 @@
+DJANGO_SECRET_KEY: zkcqMCi6XLIxTKuV8RSfTk3WeU-pb9uxpYwUJ8UA_wbEH5b_iaBQzQN1FtE8u_xyiAo
+
+DB password: CREATE USER allicom_user WITH ENCRYPTED PASSWORD 'yM2fYQ3L3Rcx1E3Pt7EMOssRUe9x-QYalKkIRWAr-r0';
+
+
+
+from django.contrib.auth.models import User
+User.objects.create_superuser('admin', 'godswillchinedu644@gmail.com', 'adminpassword') 
