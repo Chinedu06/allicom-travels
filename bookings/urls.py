@@ -1,24 +1,65 @@
-# from os import path
+# # # from os import path
+# # # from rest_framework.routers import DefaultRouter
+# # # from .views import BookingCreateView, BookingViewSet
+
+# # # router = DefaultRouter()
+# # # router.register(r'bookings', BookingViewSet, basename='bookings')
+
+# # # urlpatterns = router.urls
+
+# # # urlpatterns = [
+# # #     path('create/', BookingCreateView.as_view(), name='create-booking'),
+# # # ]
+
+# # from django.urls import path
+# # from rest_framework.routers import DefaultRouter
+# # from .views import BookingCreateView, BookingViewSet
+
+# # router = DefaultRouter()
+# # router.register(r'bookings', BookingViewSet, basename='bookings')
+
+# # # combine router urls with any manual endpoints
+# # urlpatterns = router.urls + [
+# #     path('create/', BookingCreateView.as_view(), name='create-booking'),
+# # ]
+
+# from django.urls import path
 # from rest_framework.routers import DefaultRouter
-# from .views import BookingCreateView, BookingViewSet
+# from .views import BookingCreateView, BookingViewSet, BookingListView, BookingDetailView
+
+# from django.http import JsonResponse
+# from rest_framework.views import APIView
 
 # router = DefaultRouter()
-# router.register(r'bookings', BookingViewSet, basename='bookings')
+# router.register(r'', BookingViewSet, basename='bookings')  # registers / (list, detail) under api/bookings/
 
-# urlpatterns = router.urls
+# urlpatterns = router.urls + [
+#     # explicit create endpoint => /api/bookings/create/
+#     path('create/', BookingCreateView.as_view(), name='booking-create'),
 
-# urlpatterns = [
-#     path('create/', BookingCreateView.as_view(), name='create-booking'),
+#     # optional explicit list/detail shortcuts (alias for router if needed)
+#     path('list/', BookingListView.as_view(), name='booking-list'),
+#     path('<int:pk>/', BookingDetailView.as_view(), name='booking-detail'),
 # ]
+
+# class BookingDetailView(APIView):
+#     def get(self, request, pk=None):
+#         return JsonResponse({"message": f"Booking detail endpoint for booking ID {pk} - coming soon"})
 
 from django.urls import path
 from rest_framework.routers import DefaultRouter
-from .views import BookingCreateView, BookingViewSet
+from .views import (
+    BookingCreateView,
+    BookingViewSet,
+    BookingListView,
+    BookingDetailView,
+)
 
 router = DefaultRouter()
-router.register(r'bookings', BookingViewSet, basename='bookings')
+router.register(r'', BookingViewSet, basename='bookings')
 
-# combine router urls with any manual endpoints
 urlpatterns = router.urls + [
-    path('create/', BookingCreateView.as_view(), name='create-booking'),
+    path('create/', BookingCreateView.as_view(), name='booking-create'),
+    path('list/', BookingListView.as_view(), name='booking-list'),
+    path('<int:pk>/', BookingDetailView.as_view(), name='booking-detail'),
 ]

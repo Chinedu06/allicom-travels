@@ -14,14 +14,33 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+# from django.contrib import admin
+# from django.urls import path, include
+
+
+# urlpatterns = [
+#     path('admin/', admin.site.urls),
+#     path('users/', include('users.urls')),
+#     path('api/', include('services.urls')),
+#     path('api/', include('bookings.urls')),   # bookings router e.g. /api/bookings/
+#     path('api/payments/', include('payments.urls')),
+# ]
+
 from django.contrib import admin
 from django.urls import path, include
 
-
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('users/', include('users.urls')),
-    path('api/', include('services.urls')),
-    path('api/', include('bookings.urls')),   # bookings router e.g. /api/bookings/
-    path('api/payments/', include('payments.urls')),
+
+    # Users / Auth (namespaced)
+    path('api/users/', include(('users.urls', 'users'), namespace='users')),
+
+    # Bookings (all routes under /api/bookings/)
+    path('api/bookings/', include(('bookings.urls', 'bookings'), namespace='bookings')),
+
+    # Services (public + operator routes) under /api/services/
+    path('api/services/', include(('services.urls', 'services'), namespace='services')),
+
+    # Payments (already had its own base)
+    path('api/payments/', include(('payments.urls', 'payments'), namespace='payments')),
 ]

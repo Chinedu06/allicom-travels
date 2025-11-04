@@ -93,6 +93,9 @@ from .permissions import IsBookingOwnerOrOperatorOrAdmin
 from services.models import Service
 from rest_framework.permissions import IsAuthenticated
 
+from django.http import JsonResponse
+from rest_framework.views import APIView
+
 
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all().order_by("-created_at")
@@ -167,3 +170,17 @@ class BookingCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class BookingListView(APIView):
+    def get(self, request):
+        return JsonResponse({"message": "Booking list endpoint - coming soon"})
+
+class BookingDetailView(APIView):
+    def get(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk)
+            serializer = BookingDetailSerializer(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Booking.DoesNotExist:
+            return Response({"detail": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
