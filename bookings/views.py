@@ -189,6 +189,9 @@ from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+
+
+from django.db import models
 from .models import Booking, Notification
 from .serializers import BookingCreateSerializer, BookingDetailSerializer, BookingSerializer, NotificationSerializer
 from .permissions import IsBookingOwnerOrOperatorOrAdmin
@@ -197,6 +200,8 @@ from rest_framework.permissions import IsAuthenticated
 
 from django.http import JsonResponse
 from rest_framework.views import APIView
+from django.db.models import Q
+
 
 # For file uploads
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -275,6 +280,37 @@ class NotificationListView(generics.ListAPIView):
 
     def get_queryset(self):
         return Notification.objects.filter(recipient=self.request.user).order_by('-created_at')
+    
+
+class NotificationListView(generics.ListAPIView):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return Notification.objects.filter(Q(recipient=user) | Q(recipient__isnull=True)).order_by('-created_at')
+        return Notification.objects.filter(recipient=user).order_by('-created_at')
+
+
+# class NotificationListView(generics.ListAPIView):
+#     """
+#     Returns notifications for the requesting user.
+#     Admin/staff also see global notifications (recipient=None).
+#     """
+#     serializer_class = NotificationSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         if user.is_staff or user.is_superuser:
+#             # Admins see their own plus global notifications (recipient=None)
+#             return Notification.objects.filter(
+#                 models.Q(recipient=user) | models.Q(recipient__isnull=True)
+#             ).order_by('-created_at')
+#         # regular users/operators see only notifications targeted to them
+#         return Notification.objects.filter(recipient=user).order_by('-created_at')
+
 
 
 class BookingCreateView(generics.CreateAPIView):

@@ -53,6 +53,7 @@ from .views import (
     BookingViewSet,
     BookingListView,
     BookingDetailView,
+    NotificationListView,
 )
 
 router = DefaultRouter()
@@ -62,4 +63,5 @@ urlpatterns = router.urls + [
     path('create/', BookingCreateView.as_view(), name='booking-create'),
     path('list/', BookingListView.as_view(), name='booking-list'),
     path('<int:pk>/', BookingDetailView.as_view(), name='booking-detail'),
+    path('notifications/', NotificationListView.as_view(), name='booking-notifications'),
 ]

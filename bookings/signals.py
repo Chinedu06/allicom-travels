@@ -1,118 +1,91 @@
-from django.db.models.signals import post_save, pre_save
+import logging
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
-from django.conf import settings
-from django.utils import timezone
-
 from .models import Booking, Notification
-from services.models import Service
-from payments.models import Transaction, Payment
 
-def send_notification(recipient, message):
-    # lightweight helper (in-app)
-    if recipient is None:
-        return
-    Notification.objects.create(recipient=recipient, message=message)
+# Create a logger for this app
+logger = logging.getLogger('bookings')
 
-@receiver(post_save, sender=Booking)
-def booking_post_save(sender, instance: Booking, created, **kwargs):
-    """
-    - When a new booking is created -> notify admins (recipient=None for admin/global) and operator.
-      Admin notification: we'll set recipient to None to indicate 'global' (admins should poll admin UI).
-      Additionally, notify operator that a booking was created (so they can see in their dashboard).
-    - When booking status changes to confirmed/rejected -> notify tourist and operator (operator only after confirm).
-    """
-    # created -> notify admins and operator
-    if created:
-        # Notify admins: create a Notification with recipient=None (you may change to send to all admin users)
-        Notification.objects.create(
-            recipient=None,
-            message=f"New booking #{instance.pk} for '{instance.service.title}' by {instance.given_name} {instance.surname}"
-        )
-
-        # Notify operator that their service has been booked (informational)
-        operator = instance.service.operator
-        if operator:
-            Notification.objects.create(
-                recipient=operator,
-                message=f"Your service '{instance.service.title}' has a new booking #{instance.pk}."
-            )
-        return
-
-    # not created: check status transitions
-    # A simple approach: lookup the previous status by querying DB (safe because this runs after save)
-    try:
-        old = Booking.objects.get(pk=instance.pk)
-    except Booking.DoesNotExist:
-        old = None
-
-    # If status changed (we compare instance.status to `old.status`), notify accordingly.
-    # Note: since this is post_save, old & instance will be same; so we store previous value in pre_save handler
-    # Alternative: store previous status in instance._previous_status in pre_save (we implement below).
-    prev_status = getattr(instance, "_previous_status", None)
-    new_status = instance.status
-
-    if prev_status != new_status:
-        # Tourist notifications on approve/reject
-        if new_status == Booking.STATUS_CONFIRMED:
-            if instance.user:
-                Notification.objects.create(
-                    recipient=instance.user,
-                    message=f"Your booking #{instance.pk} for '{instance.service.title}' has been approved."
-                )
-            else:
-                # if anonymous, use email fallback in your worker/email system (not implemented here)
-                pass
-
-            # Notify operator AFTER admin confirm
-            operator = instance.service.operator
-            if operator:
-                Notification.objects.create(
-                    recipient=operator,
-                    message=f"Booking #{instance.pk} for '{instance.service.title}' has been approved by admin."
-                )
-
-        elif new_status == Booking.STATUS_REJECTED:
-            if instance.user:
-                Notification.objects.create(
-                    recipient=instance.user,
-                    message=f"Your booking #{instance.pk} for '{instance.service.title}' has been rejected. Reason: {instance.admin_note or 'No reason provided.'}"
-                )
 
 @receiver(pre_save, sender=Booking)
-def booking_pre_save(sender, instance: Booking, **kwargs):
-    # store previous status for post_save comparison
+def booking_pre_save(sender, instance, **kwargs):
+    """
+    Capture the previous booking status before saving.
+    This allows post_save to detect changes (status transitions).
+    """
     if instance.pk:
         try:
             old = Booking.objects.get(pk=instance.pk)
-            instance._previous_status = old.status
+            instance._old_status = old.status
         except Booking.DoesNotExist:
-            instance._previous_status = None
+            instance._old_status = None
     else:
-        instance._previous_status = None
+        instance._old_status = None
 
 
-# Optional: when a Transaction becomes successful, sync created Payment -> booking & notify user/operator/admin
-@receiver(post_save, sender=Transaction)
-def transaction_post_save(sender, instance: Transaction, created, **kwargs):
-    # only act on status success
-    if instance.status == Transaction.STATUS_SUCCESS:
-        # ensure booking/payment synced using model method
-        try:
-            instance.mark_successful()
-        except Exception:
-            # avoid raising from signal; log will pick this up
-            import logging
-            logging.exception("Error in transaction_post_save.mark_successful")
+@receiver(post_save, sender=Booking)
+def booking_post_save(sender, instance, created, **kwargs):
+    """
+    Handle booking notifications after save events.
+    - On create: notify operator (and optionally admins globally).
+    - On status change: notify operator, user, and admins accordingly.
+    """
+    try:
+        # --- helper to safely create notifications ---
+        def create_notification(recipient, message):
+            Notification.objects.create(recipient=recipient, message=message)
 
-        # notify user that payment succeeded (if user attached to booking)
-        booking = instance.booking
-        if booking.user:
-            Notification.objects.create(
-                recipient=booking.user,
-                message=f"Payment received for booking #{booking.pk}. Your booking will be processed."
+        service = getattr(instance, "service", None)
+        operator = getattr(service, "operator", None) if service else None
+
+        # 1️⃣ New booking created — notify operator + admin
+        if created:
+            # notify operator (owner of the service)
+            if operator:
+                create_notification(
+                    operator,
+                    f"New booking #{instance.pk} created for your service '{service.title}'."
+                )
+
+            # global admin notification (recipient=None)
+            create_notification(
+                None,
+                f"New booking #{instance.pk} received for '{service.title}' by {instance.given_name} {instance.surname}."
             )
-        # notify admin too
-        Notification.objects.create(
-            recipient=None,
-            message=f"Transaction {instance.reference} succeeded for booking #{booking.pk}."
-        )
+            return
+
+        # 2️⃣ Detect status change
+        old_status = getattr(instance, "_old_status", None)
+        new_status = instance.status
+        if old_status == new_status:
+            return  # nothing changed
+
+        # 3️⃣ Booking confirmed
+        if new_status == Booking.STATUS_CONFIRMED:
+            if operator:
+                create_notification(operator, f"Booking #{instance.pk} for '{service.title}' has been approved.")
+            if instance.user:
+                create_notification(instance.user, f"Your booking #{instance.pk} has been approved.")
+
+        # 4️⃣ Booking rejected
+        elif new_status == Booking.STATUS_REJECTED:
+            reason = instance.admin_note or "No reason provided."
+            if operator:
+                create_notification(operator, f"Booking #{instance.pk} was rejected. Reason: {reason}")
+            if instance.user:
+                create_notification(instance.user, f"Your booking #{instance.pk} was rejected. Reason: {reason}")
+            # NEW: admin global notification for audit visibility
+            create_notification(None, f"Booking #{instance.pk} for '{service.title}' was rejected by admin. Reason: {reason}")
+
+        # 5️⃣ Booking cancelled
+        elif new_status == Booking.STATUS_CANCELLED:
+            initiator = getattr(instance.user, 'username', 'Unknown')
+            create_notification(None, f"Booking #{instance.pk} has been cancelled by {initiator}.")
+            if operator:
+                create_notification(operator, f"Booking #{instance.pk} has been cancelled.")
+            if instance.user:
+                create_notification(instance.user, f"Your booking #{instance.pk} has been cancelled.")
+
+    except Exception as e:
+        # Log exception to logs/bookings_signals.log via configured handler
+        logger.exception(f"Error in booking_post_save for Booking#{instance.pk if instance.pk else 'new'}: {e}")

@@ -145,9 +145,22 @@ class BookingDetailSerializer(serializers.ModelSerializer):
 
 
 class NotificationSerializer(serializers.ModelSerializer):
+    recipient = serializers.SerializerMethodField()
+
     class Meta:
         model = Notification
-        fields = ('id', 'message', 'is_read', 'created_at')
+        fields = ('id', 'recipient', 'message', 'is_read', 'created_at')
+
+    def get_recipient(self, obj):
+        # return minimal recipient info or None for global/admin messages
+        if obj.recipient is None:
+            return None
+        return {
+            "id": obj.recipient.id,
+            "username": getattr(obj.recipient, "username", None),
+            "email": getattr(obj.recipient, "email", None)
+        }
+
 
 
 class BookingSerializer(serializers.ModelSerializer):
