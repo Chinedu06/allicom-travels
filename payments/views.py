@@ -638,7 +638,9 @@ from django.urls import reverse
 
 from bookings.models import Booking
 from .models import Transaction
-from .services import verify_flutterwave_payment
+# from .services import verify_flutterwave_payment
+# from claude
+from .services import verify_flutterwave_transaction
 
 logger = logging.getLogger("payments")
 
@@ -703,7 +705,9 @@ def payment_success(request):
         return HttpResponseBadRequest("Unknown transaction")
 
     # Immediately verify via API
-    verify_flutterwave_payment(txn)
+    # verify_flutterwave_payment(txn)
+    # from claude
+    verify_flutterwave_transaction(txn)
 
     # After verification, redirect to frontend success page
     frontend_url = settings.PAYMENT_FRONTEND_SUCCESS_URL.format(reference=reference)
@@ -768,7 +772,9 @@ def flutterwave_webhook(request):
 
     # If payment is successful, verify with API
     if data.get("data", {}).get("status") == "successful":
-        verify_flutterwave_payment(txn)
+        # verify_flutterwave_payment(txn)
+        # from claude
+        verify_flutterwave_transaction(txn)
 
     return HttpResponse("Webhook OK", status=200)
 
