@@ -76,6 +76,9 @@ from .views import (
     MarkNotificationReadView,
 )
 
+app_name = "bookings"
+
+
 urlpatterns = [
     # -------------------------------
     # BOOKINGS

@@ -86,6 +86,8 @@
 #     path("packages/<int:pk>/delete/", views.PackageDeleteView.as_view(), name="package-delete"),
 # ]
 
+
+
 from django.urls import path
 from .views import (
     ServiceListView,
@@ -93,6 +95,8 @@ from .views import (
     PackageListView,
     PackageDetailView,
 )
+
+app_name = "services"
 
 urlpatterns = [
     # Services

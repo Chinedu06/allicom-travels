@@ -92,6 +92,9 @@
 from django.urls import path
 from . import views
 
+app_name = "payments"
+
+
 urlpatterns = [
     # 1) Initialize Payment
     path("init/<int:booking_id>/", views.initialize_payment, name="initialize_payment"),

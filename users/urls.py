@@ -47,6 +47,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 
+app_name = "users"
+
+
 router = DefaultRouter()
 # registers endpoints under /operators/profile/
 router.register(r'operators/profile', views.SupplierProfileViewSet, basename='operator-profile')
