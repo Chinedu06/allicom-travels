@@ -529,3 +529,9 @@ FLW_REDIRECT_URL = os.environ.get("FLW_REDIRECT_URL")
 
 # DEFAULT PK FIELD
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# from claude
+# At the end of your settings.py file, add:
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
