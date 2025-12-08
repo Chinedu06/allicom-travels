@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import SupplierProfile
+from django.conf import settings
 
 User = get_user_model()
 
@@ -62,9 +63,33 @@ class OperatorLoginSerializer(serializers.Serializer):
             }
         }
 
+# class SupplierProfileSerializer(serializers.ModelSerializer):
+#     # user is read-only; we'll associate with request.user in the view
+#     user = serializers.ReadOnlyField(source='user.username')
+
+#     class Meta:
+#         model = SupplierProfile
+#         fields = [
+#             'id', 'user', 'trading_name', 'company_name', 'registration_number',
+#             'business_address', 'business_phone', 'business_email',
+#             'owner_full_name', 'owner_phone', 'owner_email',
+#             'contact_person_name', 'contact_person_phone', 'contact_person_email',
+#             'association_certificate', 'business_certificate',
+#             'created_at', 'updated_at',
+#         ]
+#         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+#     def validate(self, data):
+#         # enforce any extra validation rules here (e.g., phone format)
+#         return data
+
+
+
 class SupplierProfileSerializer(serializers.ModelSerializer):
-    # user is read-only; we'll associate with request.user in the view
     user = serializers.ReadOnlyField(source='user.username')
+
+    association_certificate_url = serializers.SerializerMethodField()
+    business_certificate_url = serializers.SerializerMethodField()
 
     class Meta:
         model = SupplierProfile
@@ -74,10 +99,23 @@ class SupplierProfileSerializer(serializers.ModelSerializer):
             'owner_full_name', 'owner_phone', 'owner_email',
             'contact_person_name', 'contact_person_phone', 'contact_person_email',
             'association_certificate', 'business_certificate',
+            'association_certificate_url', 'business_certificate_url',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'user', 'created_at', 'updated_at',
+            'association_certificate_url', 'business_certificate_url'
+        ]
+
+    def get_association_certificate_url(self, obj):
+        if obj.association_certificate:
+            return f"{settings.MEDIA_URL}{obj.association_certificate}"
+        return None
+
+    def get_business_certificate_url(self, obj):
+        if obj.business_certificate:
+            return f"{settings.MEDIA_URL}{obj.business_certificate}"
+        return None
 
     def validate(self, data):
-        # enforce any extra validation rules here (e.g., phone format)
         return data
